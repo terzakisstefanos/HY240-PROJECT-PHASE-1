@@ -47,4 +47,4 @@ genre_t *insertGenretolist(genre_t *head ,genre_t *node){
     node->next_by_gid=current->next_by_gid;
     current->next_by_gid=node;
     return node;
-}
+}//test
