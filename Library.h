@@ -14,6 +14,7 @@
     int SLOTS;
 */
 extern int SLOTS;
+extern int REMAINDER;
 
 /* -----------------------------------------
    LOAN: ενεργός δανεισμός (unsorted, O(1) insert/remove)
@@ -86,6 +87,7 @@ typedef struct member {
          Αποθηκεύουμε απλώς pointers στα book_t (δεν αντιγράφουμε δεδομένα). */
       int slots;            /* πόσα επιλέχθηκαν για προβολή σε αυτό το genre */
       book_t **display;     /* δυναμικός πίνακας με pointers στα επιλεγμένα βιβλία για προβολή */
+      int remainder;
 
       /* Μονοσυνδεδεμένη λίστα όλων των genres ταξινομημένη κατά gid (για εύκολη σάρωση). */
       struct genre *next;
@@ -101,6 +103,41 @@ typedef struct library {
     member_t *members;    /* διπλά συνδεδεμένη λίστα μελών (sorted by sid) */
     book_t   *books;      /* unsorted λίστα όλων των books (ευκολία αναζήτησης) — προαιρετικό */
 } library_t;
+
+
+// creation
+library_t *createLibrary(void);
+genre_t   *createGenre(int gid, char *name);
+member_t  *createmember(int sid, char *name);
+book_t    *createBook(int bid, int gid, char *title);
+
+// insertion 
+void insertGenretolist(library_t *head, genre_t *node);
+void insertbooktogenre(genre_t *head, book_t *newbook);
+void insertbooktogeneric(library_t *head, book_t *book);
+void insertmembertolist(library_t *head, member_t *newmember);
+
+// search 
+genre_t   *searchgenre(library_t *head, int gid);
+book_t    *searchbook(genre_t *head, int bid);
+book_t    *searchbooktogeneric(library_t *Lib, int bid);
+member_t  *searchmember(library_t *Lib, int sid);
+loan_t    *searchloan(member_t *head, int bid);
+
+// actions 
+void reviewbook(book_t *bookingenre, book_t * bookingeneric,int score);
+void returnbook(library_t * lib,int sid,int bid,int score,char *status);
+void Loanbook(library_t *LIB, int sid, int bid);
+
+// removal helpers
+void removebook(genre_t *genre, book_t *book);
+void removeloan(member_t *member, loan_t *loan);
+
+// printing
+void printgenres(library_t *Lib);
+void printmembers(library_t *Lib);
+void printmemberloan(library_t *lib,int sid);
+
 
 /* =========================
    ΒΟΗΘΗΤΙΚΕΣ ΣΥΜΒΑΣΕΙΣ & INVARIANTS

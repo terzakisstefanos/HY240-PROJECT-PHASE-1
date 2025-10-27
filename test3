@@ -1,0 +1,48 @@
+# Simple test to verify basic functionality
+# This tests the core commands
+
+# Set display slots
+S 10
+
+# Create genres
+G 1 "Fiction"
+G 2 "Science"
+G 3 "History"
+
+# Create books
+BK 1 1 "The Great Book"
+BK 2 1 "Another Novel"
+BK 3 2 "Physics 101"
+BK 4 2 "Chemistry Basics"
+BK 5 3 "Ancient Rome"
+
+# Create members
+M 1 "Alice Smith"
+M 2 "Bob Jones"
+
+# Loan books
+L 1 1
+L 1 3
+L 2 2
+
+# Print member loans
+PM 1
+PM 2
+
+# Return books with ratings
+R 1 1 8 ok
+R 1 3 9 ok
+R 2 2 7 ok
+
+# Print genre (should be sorted by avg)
+PG 1
+PG 2
+
+# Print stats
+PS
+
+# Try display allocation (TODO: implement this)
+D
+
+# Print display results
+PD
