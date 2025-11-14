@@ -3,6 +3,7 @@
 #include <string.h>
 #include "Library.h"
 
+int SLOTS = 0;
 
 
 
@@ -12,8 +13,8 @@
 library_t* createLibrary (void){
     library_t *library = malloc(sizeof(library_t));
     if (library == NULL) {
-        return NULL;
         printf("%s\n","IGNORED");
+        return NULL;
     }
     library->genres = NULL;
     library->members = NULL;
@@ -103,11 +104,7 @@ void insertGenretolist(library_t *head ,genre_t *node){
 }
 
 // A function that inserts a new book to the genre 
-void insertbooktogenre(genre_t *head, book_t *newbook) {
-    if(searchbook(head,newbook->bid)!=NULL){
-        printf("%s\n","IGNORED");
-        return ;
-    }
+void insertbooktogenre(genre_t *head, book_t *newbook) {// no need to check for the search books because we check it outside of the function 
     if (head->books == NULL || newbook->avg > head->books->avg) {
         newbook->next = head->books;
         newbook->prev = NULL;
@@ -115,7 +112,6 @@ void insertbooktogenre(genre_t *head, book_t *newbook) {
             head->books->prev = newbook;
         }
         head->books = newbook;
-        printf("%s\n","DONE");
         return;
     }
     book_t *current = head->books;
@@ -128,19 +124,13 @@ void insertbooktogenre(genre_t *head, book_t *newbook) {
         current->next->prev = newbook;
     }
     current->next = newbook;
-    printf("%s\n","DONE");
     return;
 }
 
 // A function that adds books to the generic list of the library 200
-void insertbooktogeneric(library_t *head,book_t *book){
-    if(searchbooktogeneric(head,book->bid)!=NULL){
-        printf("%s\n","IGNORED");
-        return ;
-    }
-    book->next_global = head->books;
-    head->books = book;
-    printf("%s\n","DONE");
+void insertbooktogeneric(library_t *LIB, book_t *book) {
+    book->next_global = LIB->books; 
+    LIB->books = book;              
     return;
 }
 
@@ -166,6 +156,20 @@ void insertmembertolist(library_t *head, member_t *newmember) {
     return;
 }
 
+// A function that inserts books to the display list 
+void insertbookstodisplay(genre_t *genre) {
+    if (genre->slots <= 0 || genre->display == NULL) return;
+
+    int i = 0;
+    book_t *current = genre->books;
+    while (current != NULL && i < genre->slots) {
+        if (current->lost_flag == 0) {
+            genre->display[i++] = current;
+        }
+        current = current->next;
+    }
+    genre->slots = i;
+}
 
 //**********************************SEARCH FUNCTIONS**********************************
 
@@ -191,7 +195,7 @@ book_t *searchbook(genre_t *head, int bid){
 book_t *searchbooktogeneric(library_t *Lib, int bid){
         book_t *current= Lib->books;
     while (current != NULL && current->bid != bid){
-        current = current->next;
+        current = current->next_global;
     }
     return current;
 }
@@ -210,6 +214,7 @@ loan_t *searchloan(member_t *head, int bid){
     while (current->bid != bid){
         current = current->next;
     }
+    head->loans->bid = -1;
     if (current==head->loans){// using the sentinel to check if we reached the end of the list 
         return NULL;
     }
@@ -218,7 +223,7 @@ loan_t *searchloan(member_t *head, int bid){
 }
 // A function that add a loaned book to a member 
 void Loanbook(library_t *LIB, int sid, int bid){
-    member_t *member= searchmember(LIB,sid);
+    member_t *member= searchmember(LIB,sid); // check if everythink exists 
     if (member==NULL){
         printf("%s\n","IGNORED");
         return;
@@ -233,34 +238,34 @@ void Loanbook(library_t *LIB, int sid, int bid){
         printf("%s\n","IGNORED");
         return;
     }
+    if (bookingeneric->lost_flag==1){
+        printf("%s\n", "IGNORED");
+        return;
+    }
     loan_t *newloan=malloc(sizeof(loan_t));
         if (newloan==NULL){
         printf("%s\n","IGNORED");
         return;
     }
     newloan->sid=sid;
-    newloan->bid=bid;
-    newloan->next= member->loans->next;
-    member->loans->next=newloan;
+    newloan->bid = bid;
+    newloan->next = member->loans->next;
+    member->loans->next = newloan;
     printf("%s\n", "DONE");
     return;
 }
 
-// A function that prints genres 
-void printgenres(library_t * Lib){//TODO make another one this is only for testing the other one should print one only one genre at a time 
-    genre_t * current = Lib->genres;
-    while(current!=NULL){
-        printf("%s\n",current->name);
-        printf("gid=%d name=%s\n", current->gid, current->name);
-        current=current->next;
+// A function that prints the books of the genres
+void printgenrebooks(library_t *lib, int gid) {
+    genre_t *genre = searchgenre(lib, gid);
+    if (genre == NULL) {
+        printf("IGNORED\n");
+        return;
     }
-}
-
-void printmembers(library_t * Lib){
-    member_t * current = Lib->members;
-    while(current!=NULL){
-        printf("%s\n",current->name);
-        current=current->next;
+    book_t *book = genre->books;
+    while (book != NULL) {
+        printf("%d, %d\n", book->bid, book->avg);
+        book = book->next;
     }
 }
 // A function that prints all of the loaned books of a user 
@@ -270,50 +275,83 @@ void printmemberloan(library_t *lib,int sid){
         printf("%s\n", "IGNORED");
         return;
     }
-    member->loans->sid=sid;
+    printf("Loans:\n");
     loan_t *current=member->loans->next;
-    while (current->sid != sid){
-        printf("%d",current->bid);
+    while (current != member->loans){
+        printf("%d\n",current->bid);
         current = current->next;
     }
 }
+// A function that prints the display of each genre 
+void printdisplay(library_t *lib) {
+    printf("Display:\n");
 
-void returnbook(library_t * lib,int sid,int bid,int score,char *status){//TODO in the main change the score from NA to -1 
-    member_t *member=searchmember(lib,sid);
+    genre_t *genre = lib->genres;
+    int empty = 1;
+
+    while (genre != NULL) {
+        if (genre->slots > 0 && genre->display != NULL) {
+            empty = 0;
+            printf("%d:\n", genre->gid);
+
+            int i = 0;
+            while (i < genre->slots) {
+                book_t *book = genre->display[i];
+                if (book != NULL) {
+                    printf("%d, %d\n", book->bid, book->avg);
+                }
+                i++;
+            }
+        }
+        genre = genre->next;
+    }
+
+    if (empty) {
+        printf("(empty)\n");
+    }
+}
+
+// A function that returns a loaned book 
+void returnbook(library_t * lib,int sid,int bid,int score,char *status){
+    member_t *member=searchmember(lib,sid); // check if everything exists
     if (member==NULL){
         printf("%s\n", "IGNORED");
         return;
     }
-    if (searchloan(member,bid)==NULL){
+    loan_t *loan=searchloan(member,bid);
+    if (loan==NULL){
         printf("%s\n", "IGNORED");
         return;
     }
     book_t *bookingeneric = searchbooktogeneric(lib,bid);
     if (bookingeneric==NULL){
         printf("%s\n", "IGNORED");
-        return 0;
+        return ;
     }
     genre_t *genre=searchgenre(lib,bookingeneric->gid); // no need to check if this is null because if the book exists in the generic it exists everywhere
     book_t *bookingenre = searchbook(genre,bid);
+    removeloan(member,loan);
     if (strcmp(status,"ok")==0){
-        if (score >= 0 && score <= 10){
+        if (score >= 0 && score <= 10){// If score is within appropriate values 
             reviewbook(bookingenre ,bookingeneric,score);
             removebook(genre,bookingenre);
             insertbooktogenre(genre,bookingenre);
             printf("%s\n", "DONE");
-        }else {
+        }else if (score==-1) {
+            printf("%s\n", "DONE");
+        }else{
             genre->invalid_count++;
             printf("%s\n", "IGNORED");
         }
     }else{
-    bookingeneric->lost_flag=1;
-    bookingenre->lost_flag=1;
-    genre->lost_count++;
-    printf("%s\n", "DONE");
+        bookingeneric->lost_flag = 1;
+        bookingenre->lost_flag = 1;
+        genre->lost_count++;
+        printf("%s\n", "DONE");
     }
     return;
 }
-
+// A function that reviews books 
 void reviewbook(book_t *bookingenre, book_t * bookingeneric,int score){
     bookingenre->n_reviews++;
     bookingenre->sum_scores=bookingenre->sum_scores+score;
@@ -324,7 +362,7 @@ void reviewbook(book_t *bookingenre, book_t * bookingeneric,int score){
     bookingeneric->avg=bookingenre->avg;
     return;
 }
-
+// A function that removes books 
 void removebook (genre_t* genre , book_t *book){
     if (book->next == NULL && book->prev == NULL){
         genre->books = NULL;
@@ -344,91 +382,125 @@ void removebook (genre_t* genre , book_t *book){
     book->prev = NULL;
     return;
 }
+// A function that removes a loan 
 void removeloan(member_t *member,loan_t *loan){
     if (loan->next==member->loans && member->loans->next==loan){
         member->loans->next=member->loans;
-    }else{
-        member->loans->bid=loan->bid;
-        loan_t *current=member->loans->next;
-        while (current->next->bid==loan->bid){
-            current=current->next;
-        }
-        current->next=loan->next;
+        free(loan);
+        member->loans->bid = -1;
+        return;
     }
+    member->loans->bid = loan->bid;
+    loan_t *current = member->loans->next;
+    while (current->next->bid != loan->bid){
+        current = current->next;
+    }
+    member->loans->bid = -1;
+    if (current->next == member->loans){
+        return;
+    }
+    current->next=loan->next;
     free(loan);
-    member->loans->sid=-1;
+    member->loans->bid=-1;
     return;
 }
 
-void display(library_t * lib){
-    genre_t *current=lib->genres;
-    if (SLOTS<=0){
-        printf("%s\n", "IGNORED");
+// A function that puts books to the display 
+void display(library_t *lib) {
+    if (SLOTS <= 0) {
+        printf("IGNORED\n");
         return;
     }
-    int remains =0;
-        while (current!= NULL){
-        current->slots=(computepoints(current)/(computepoints(current)/SLOTS));
-        insertbookstodisplay(current);
-        remains=remains +current->remainder;
-    }
-    while (remains){
-        genre_t * genre = findmaxgenre(lib);
-        genre->slots=1;
-        insertbookstodisplay(genre);
-        remains--;
-    }
-}
 
-void insertbookstodisplay(genre_t* genre,int flag){// Flag = 0 for inserting books (slots) and Flag = 1 for inserting one book 
-    int i = 0;
+// Free previous display and rest the slots and remainders 
+    genre_t *genre = lib->genres;
+    while (genre != NULL) {
+        if (genre->display != NULL) {
+            free(genre->display);
+            genre->display = NULL;
+        }
+        genre->slots = 0;
+        genre->remainder = 0;
+        genre = genre->next;
+    }
+    int total_points = 0;
+    int genre_count = 0;
+    genre = lib->genres;
+    while (genre != NULL) {
+        int pts = computepoints(genre);   
+        genre->remainder = pts;           
+        total_points += pts;
+        genre_count++;
+        genre = genre->next;
+    }
+
+    if (total_points == 0) {
+        printf("DONE\n");
+        return;
+    }
+    int quota = total_points / SLOTS;
+    genre = lib->genres;
+    int seats_sum = 0;
+    while (genre != NULL) {
+        int pts = genre->remainder;
+        if (quota > 0) {
+            genre->slots = pts / quota;                     
+            genre->remainder = pts - (genre->slots * quota);   
+        } else {
+            genre->slots = 0;
+            genre->remainder = pts;
+        }
+        seats_sum += genre->slots;
+        genre = genre->next;
+    }
+
+// Distribute remaining slots by repeatedly choosing the genre with max remainder
+    int remaining = SLOTS - seats_sum;
+    while (remaining > 0 && genre_count > 0) {
+        genre_t *best = findmaxgenre(lib);
+        if (best == NULL){break;} // if no more genres with remains are left stop
+        if (best->remainder <= 0){break;} 
+        best->slots += 1;
+        best->remainder = -1;
+        remaining--;
+    }
+    genre = lib->genres;
+    while (genre != NULL) {
+        if (genre->slots > 0) {
+            int available = 0; // number of non lost boojs 
+            book_t *book = genre->books;
+            while (book != NULL) {
+                if (book->lost_flag == 0) available++;
+                book = book->next;
+            }
+
+            if (available == 0) {
+                genre->slots = 0; 
+            } else {
+                if (genre->slots > available) genre->slots = available;
+                genre->display = malloc(genre->slots * sizeof(book_t *));
+                if (genre->display == NULL) {
+                    genre->slots = 0;
+                } else {
+                    insertbookstodisplay(genre);
+                }
+            }
+        }
+        genre = genre->next;
+    }
+    printf("DONE\n");
+}
+ 
+
+// A function that computes the points of each genre 
+int computepoints(genre_t *genre) {
+    int points = 0;
     book_t *current = genre->books;
-    book_t *last = NULL;
-    while (current != NULL && i < genre->slots){
-        if (current->lost_flag==0){
-
-            int exists = 0;
-            book_t *check = genre->display;
-            while (check != NULL){
-                if (strcmp(check->title, current->title) == 0){
-                    exists = 1;
-                    break;
-                }
-                check = check->next;
-            }
-            if(!exists){
-                if (genre->display == NULL){
-                    genre->display=current;
-                    last=current;
-                }else {
-                
-                    last->next=current;
-                    last=current;
-                }
-                i++;
-            }
+    while (current != NULL) {
+        if (current->lost_flag == 0 && current->n_reviews > 0) {
+            points += current->sum_scores;
         }
-        current=current->next;
-    }
-    if (last != NULL){
-        last->next = NULL;
-    }
-    if (!flag) {
-        genre->remainder = genre->slots - i; // only update remainder during first distribution
-        genre->slots = i;
-    }else{
-        genre->remainder--;
-    }
-}
-
-int computepoints(genre_t *genre){
-    int points=0;
-    book_t *current =genre->books;
-    while (current!=NULL){
-        if (current->lost_flag==0 || current->n_reviews>0){
-            points+=current->avg;
-        }
-        current=current->next;
+        current = current->next;
     }
     return points;
 }
@@ -445,42 +517,42 @@ genre_t * findmaxgenre (library_t *Lib){
     return max;
 }
 
-int main(void){
-    char filename[256];
-    printf ("%s","Give me the name of the file where the commands are: ");
-    if (fgets(filename,sizeof(filename),stdin)==NULL){
-        fprintf(stderr,"Error reading filename\n");
-        return 1 ;
+
+int main(int argc, char *argv[]){
+    if (argc != 2) { // get the file name  make 
+        fprintf(stderr, "Usage: %s <input-file>\n", argv[0]);
+        return 1;
     }
-    size_t length=strlen(filename);
-    if (length > 0 && filename[length-1] == '\n'){ 
-        filename[length-1] = '\0';
-    }
-    FILE * file=fopen(filename,"r");
-    if (file==NULL){
-        fprintf(stderr,"Error opening file or file does not exist\n");
+    
+    FILE *file = fopen(argv[1], "r");
+    if (file == NULL){
+        fprintf(stderr,"Error opening file: %s\n", argv[1]);
         return 1;
     }
     library_t *library=createLibrary();
     char buffer[256];
     while (fgets(buffer,sizeof(buffer),file)!=NULL){
+        if (buffer[0] == '#' || buffer[0] == '\n' || buffer[0] == '\r'){ // remove comments 
+            continue;
+        }
         if (strncmp(buffer, "G", 1) == 0) {
-            printf("Found Genre command: %s\n", buffer);
-
             int gid;
             char name[NAME_MAX] ;
-            sscanf(buffer+2,"%d \"%63[^\"]\"",&gid,name);
+            sscanf(buffer+2,"%d \"%63[^\"]\"",&gid,name);// The 63 and later the 127 is to limit the reading of the name to the maxname
             genre_t *newnode= createGenre(gid,name);
             if (newnode==NULL){
                 return 1;
             }
             insertGenretolist(library,newnode);
         } else if (strncmp(buffer, "BK", 2) == 0) {
-            printf("Found Book command: %s\n", buffer);
             int bid;
             int gid;
             char name[NAME_MAX];
             sscanf(buffer+3,"%d %d \"%127[^\"]\"",&bid,&gid,name);
+            if (searchbooktogeneric(library,bid)!=NULL){
+                printf("IGNORED\n");
+                continue;
+            }
             book_t *newbook= createBook(bid,gid,name);
             if (newbook==NULL){
                 return 1 ;
@@ -494,8 +566,8 @@ int main(void){
             }
             insertbooktogenre(genre,newbook);
             insertbooktogeneric(library,newbook);
+            printf("DONE\n");
         } else if (strncmp(buffer, "M", 1) == 0) {
-            printf("Found Member command: %s\n", buffer);
             int sid;
             char name[NAME_MAX];
             sscanf(buffer + 2, "%d \"%63[^\"]\"", &sid, name);
@@ -505,34 +577,35 @@ int main(void){
             }
             insertmembertolist(library,newmember);
         } else if (strncmp(buffer, "L", 1) == 0) {
-            printf("Found Loan command: %s\n", buffer);
             int sid;
             int bid;
             sscanf(buffer+2,"%d %d",&sid,&bid);
             Loanbook(library,sid,bid);
         } else if (strncmp(buffer, "R", 1) == 0) {
-            printf("Found Return command: %s\n", buffer);
+            int sid,bid,score=-1;
+            char status[10];
+            sscanf(buffer+2,"%d %d %d %s",&sid,&bid,&score,status); // No need to check if score is NA becuase the sscanf wont even read it 
+            returnbook(library,sid,bid,score,status);
         } else if (strncmp(buffer, "D", 1) == 0) {
-            printf("Found Display command: %s\n", buffer);
+            display(library);
         } else if (strncmp(buffer, "PG", 2) == 0) {
-            printf("Found Print Genre command: %s\n", buffer);
-            printgenres(library);//TODO forget to erase it 
             int gid;
             sscanf(buffer+3,"%d",&gid);
             genre_t *genre = searchgenre(library,gid);
-            printf("%s",genre->name);
+                        if (genre == NULL) {
+                printf("IGNORED\n");
+            } else {
+            printgenrebooks(library,gid);    
+            }
         } else if (strncmp(buffer, "PM", 2) == 0) {
-            printf("Found Print Member command: %s\n", buffer);
-            printmembers(library);
             int sid;
             sscanf(buffer+3,"%d",&sid);
             printmemberloan(library,sid);
         } else if (strncmp(buffer, "PD", 2) == 0) {
-            printf("Found Print Display command: %s\n", buffer);
-        } else if (strncmp(buffer, "PS", 2) == 0) {
-            printf("Found Print Stats command: %s\n", buffer);
+            printdisplay(library);
         } else if (strncmp(buffer, "S", 1) == 0) {
-            printf("Found Slots command: %s\n", buffer);
+            sscanf(buffer + 2, "%d", &SLOTS);
+            printf("DONE\n"); 
         }
     }
     return 0; 

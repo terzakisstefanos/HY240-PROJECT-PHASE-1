@@ -1,23 +1,17 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c99 -g
-SRCS = Library.c
 TARGET = Library.exe
-
-ifeq ($(OS),Windows_NT)
-RUN = .\$(TARGET)
-RM  = del /Q
-else
-RUN = ./$(TARGET)
-RM  = rm -f
-endif
+TESTFILE = test3
 
 all: $(TARGET)
 
-$(TARGET): $(SRCS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SRCS)
+$(TARGET): Library.c Library.h
+	$(CC) $(CFLAGS) -o $(TARGET) Library.c
 
 run: $(TARGET)
-	$(RUN)
+	./$(TARGET) $(TESTFILE)
 
 clean:
-	$(RM) $(TARGET)
+	rm -f $(TARGET)
+
+.PHONY: all run clean

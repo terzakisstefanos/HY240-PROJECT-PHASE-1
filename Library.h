@@ -9,12 +9,15 @@
 #define TITLE_MAX 128
 #define NAME_MAX  64
 
+typedef struct BookNode{
+   char title[TITLE_MAX]
+}bookn_t;
+
 /*  Παγκόσμια θέση προβολών (ορίζεται από την εντολή S <slots>)
     Φροντίστε να το κάνετε define στο αντίστοιχο .c αρχείο, ως
     int SLOTS;
 */
 extern int SLOTS;
-extern int REMAINDER;
 
 /* -----------------------------------------
    LOAN: ενεργός δανεισμός (unsorted, O(1) insert/remove)
@@ -116,6 +119,7 @@ void insertGenretolist(library_t *head, genre_t *node);
 void insertbooktogenre(genre_t *head, book_t *newbook);
 void insertbooktogeneric(library_t *head, book_t *book);
 void insertmembertolist(library_t *head, member_t *newmember);
+void insertbookstodisplay(genre_t* genre);
 
 // search 
 genre_t   *searchgenre(library_t *head, int gid);
@@ -125,20 +129,23 @@ member_t  *searchmember(library_t *Lib, int sid);
 loan_t    *searchloan(member_t *head, int bid);
 
 // actions 
-void reviewbook(book_t *bookingenre, book_t * bookingeneric,int score);
-void returnbook(library_t * lib,int sid,int bid,int score,char *status);
+void reviewbook(book_t *bookingenre, book_t *bookingeneric, int score);
+void returnbook(library_t *lib, int sid, int bid, int score, char *status);
 void Loanbook(library_t *LIB, int sid, int bid);
+void display(library_t *lib);
 
 // removal helpers
 void removebook(genre_t *genre, book_t *book);
 void removeloan(member_t *member, loan_t *loan);
 
 // printing
-void printgenres(library_t *Lib);
-void printmembers(library_t *Lib);
-void printmemberloan(library_t *lib,int sid);
+void printmemberloan(library_t *lib, int sid);
+void printdisplay(library_t *Lib);
+void printgenrebooks(library_t *lib, int gid);  // ✅ Added
 
-
+// utility/calculation helpers
+int computepoints(genre_t *genre);
+genre_t *findmaxgenre(library_t *Lib);
 /* =========================
    ΒΟΗΘΗΤΙΚΕΣ ΣΥΜΒΑΣΕΙΣ & INVARIANTS
    =========================
