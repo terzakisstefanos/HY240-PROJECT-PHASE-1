@@ -207,6 +207,18 @@ member_t *searchmember(library_t *Lib, int sid){
     }
     return current;
 }
+// A function that searches for a specific loan
+member_t *find_loan(library_t *Lib, int bid) {
+    if (Lib == NULL) return NULL;
+    member_t *member = Lib->members;
+    while (member != NULL) {
+        if (member->loans != NULL) {
+            if (searchloan(member, bid) != NULL){return member;}
+        }
+        member = member->next;
+    }
+    return NULL;
+}
 // A function that searches the loan list of a member 
 loan_t *searchloan(member_t *head, int bid){
     head->loans->bid=bid;
@@ -223,12 +235,12 @@ loan_t *searchloan(member_t *head, int bid){
 }
 // A function that add a loaned book to a member 
 void Loanbook(library_t *LIB, int sid, int bid){
-    member_t *member= searchmember(LIB,sid); // check if everythink exists 
+    member_t *member= searchmember(LIB,sid); // check if everything exists 
     if (member==NULL){
         printf("%s\n","IGNORED");
         return;
     }
-    loan_t *loaned=searchloan(member,bid);
+    loan_t *loaned=find_loan(member,bid);
     if (loaned!=NULL){
         printf("%s\n", "IGNORED");
         return;
@@ -264,7 +276,9 @@ void printgenrebooks(library_t *lib, int gid) {
     }
     book_t *book = genre->books;
     while (book != NULL) {
-        printf("%d, %d\n", book->bid, book->avg);
+        if (book->lost_flag==0){
+            printf("%d, %d\n", book->bid, book->avg);
+        }
         book = book->next;
     }
 }
@@ -330,20 +344,22 @@ void returnbook(library_t * lib,int sid,int bid,int score,char *status){
     }
     genre_t *genre=searchgenre(lib,bookingeneric->gid); // no need to check if this is null because if the book exists in the generic it exists everywhere
     book_t *bookingenre = searchbook(genre,bid);
-    removeloan(member,loan);
     if (strcmp(status,"ok")==0){
         if (score >= 0 && score <= 10){// If score is within appropriate values 
+            removeloan(member,loan);
             reviewbook(bookingenre ,bookingeneric,score);
             removebook(genre,bookingenre);
             insertbooktogenre(genre,bookingenre);
             printf("%s\n", "DONE");
         }else if (score==-1) {
+            removeloan(member,loan);
             printf("%s\n", "DONE");
         }else{
             genre->invalid_count++;
             printf("%s\n", "IGNORED");
         }
     }else{
+        removeloan(member,loan);
         bookingeneric->lost_flag = 1;
         bookingenre->lost_flag = 1;
         genre->lost_count++;
@@ -461,7 +477,7 @@ void display(library_t *lib) {
         if (best == NULL){break;} // if no more genres with remains are left stop
         if (best->remainder <= 0){break;} 
         best->slots += 1;
-        best->remainder = -1;
+        best->remainder--;
         remaining--;
     }
     genre = lib->genres;
@@ -517,6 +533,33 @@ genre_t * findmaxgenre (library_t *Lib){
     return max;
 }
 
+//**********************************PHASE B**********************************
+
+// Helper function that returns the height of a node 
+int height (bookn_t* node){
+    if (node==NULL){
+        return -1;
+    }
+    return node->height;
+}
+// Helper function to calculate the bigger of 2 ints 
+int max(int a, int b) {
+    return (a > b)? a:b; // If a > b, return a. Otherwise, return b.
+}
+// A function that creates a new bookindex node 
+bookn_t *createBookn(char * title , book_t * book){
+    bookn_t * newbook = malloc (sizeof(bookn_t));
+    if (newbook == NULL) {
+      printf("%s\n", "IGNORED");
+      return NULL;
+    }
+    newbook->book=book;
+    newbook->Lc=NULL;
+    newbook->Rc=NULL;
+    newbook->height=0;
+    strcpy(newbook->title,title);
+    return newbook;
+}
 
 int main(int argc, char *argv[]){
     if (argc != 2) { // get the file name  make 

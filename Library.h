@@ -1,134 +1,107 @@
-/* =========================
-   Κοινά & βοηθητικά
-   ========================= */
 #ifndef LIBRARY_H
 #define LIBRARY_H
 
 #include <stddef.h>
 
 #define TITLE_MAX 128
-#define NAME_MAX  64
+#define NAME_MAX 64
 
-typedef struct BookNode{
-   char title[TITLE_MAX]
-}bookn_t;
 
-/*  Παγκόσμια θέση προβολών (ορίζεται από την εντολή S <slots>)
-    Φροντίστε να το κάνετε define στο αντίστοιχο .c αρχείο, ως
-    int SLOTS;
-*/
 extern int SLOTS;
 
-/* -----------------------------------------
-   LOAN: ενεργός δανεισμός (unsorted, O(1) insert/remove)
-   Λίστα ανά Member με χρήση sentinel node.
-   ----------------------------------------- */
+
 typedef struct loan {
-    int sid;            /* member id (ιδιοκτήτης της λίστας) */
-    int bid;            /* book id που έχει δανειστεί */
-    struct loan *next;  /* επόμενος δανεισμός του μέλους */
+  int sid;           
+  int bid;           
+  struct loan *next; 
 } loan_t;
 
-/* -----------------------------------------
-   BOOK: βιβλίο
-   - Ανήκει σε ακριβώς ένα Genre (gid)
-   - Συμμετέχει στη διπλά συνδεδεμένη λίστα του Genre,
-     ταξινομημένη φθίνοντα κατά avg.
-   ----------------------------------------- */
+
 typedef struct book {
-    int  bid;                         /* book id (μοναδικό) */
-    int  gid;                         /* genre id (ιδιοκτησία λίστας) */
-    char title[TITLE_MAX];
-
-    /* Στατιστικά δημοτικότητας */
-    int sum_scores;                   /* άθροισμα έγκυρων βαθμολογιών */
-    int n_reviews;                       /* πλήθος έγκυρων βαθμολογιών */
-    int avg;                          /* cache: floor(sum_scores / n_reviews); 0 αν n_reviews=0 */
-    int lost_flag;                    /* 1 αν δηλωμένο lost, αλλιώς 0 */
-
-    /* Διπλά συνδεδεμένη λίστα του genre, ταξινομημένη κατά avg (desc). */
-    struct book *prev;
-    struct book *next;
-
-    /* Προαιρετικό: συνδέσεις σε global ευρετήρια αν κρατήσετε (όχι απαραίτητο) */
-     struct book *next_global;         /* π.χ. unsorted λίστα όλων των βιβλίων */
+  int bid; 
+  int gid; 
+  char title[TITLE_MAX];
+  int sum_scores; 
+  int n_reviews;
+  int avg;        
+  int lost_flag;
+  int heap_pos;
+  struct book *prev;
+  struct book *next;
+  struct book *next_global; 
 } book_t;
 
-/* -----------------------------------------
-   MEMBER: μέλος βιβλιοθήκης
-   - Κρατά unsorted λίστα ενεργών δανεισμών (loan_t) με χρήση sentinel node
-   ----------------------------------------- */
 typedef struct member {
-    int  sid;                         /* member id (μοναδικό) */
-    char name[NAME_MAX];
-
-    /* Λίστα ενεργών δανεισμών:
-       Uns. singly-linked με sentinel node:
-       - Εισαγωγή: O(1) push-front
-       - Διαγραφή γνωστού bid: O(1) αν κρατάτε prev pointer στη σάρωση */
-    loan_t* loans;
-
-    /* Μονοσυνδεδεμένη λίστα όλων των μελών ταξινομημένη κατά sid */
-    struct member *next;
+  int sid;
+  char name[NAME_MAX];
+  Activity_t *activity;
+  loan_t *loans;
+  struct member *next;
 } member_t;
 
-   /* -----------------------------------------
-      GENRE: κατηγορία βιβλίων
-      - Κρατά ΔΙΠΛΑ συνδεδεμένη λίστα ΒΙΒΛΙΩΝ ταξινομημένη κατά avg (desc)
-      - Κρατά και το αποτέλεσμα της τελευταίας D (display) για εκτύπωση PD
-      ----------------------------------------- */
-   typedef struct genre {
-      int  gid;                         /* genre id (μοναδικό) */
-      char name[NAME_MAX];
+typedef struct genre {
+  int gid; 
+  char name[NAME_MAX];
+  book_t *books;
+  int lost_count;
+  int invalid_count;
+  int slots;        
+  book_t **display; 
+  int remainder;
+  struct genre *next;
+} genre_t;
 
-      /* διπλά συνδεδεμένη λίστα βιβλίων ταξινομημένη κατά avg φθίνουσα. */
-      book_t* books;
-      int lost_count;
-      int invalid_count;
-
-      /* Αποτέλεσμα τελευταίας κατανομής D: επιλεγμένα βιβλία για προβολή.
-         Αποθηκεύουμε απλώς pointers στα book_t (δεν αντιγράφουμε δεδομένα). */
-      int slots;            /* πόσα επιλέχθηκαν για προβολή σε αυτό το genre */
-      book_t **display;     /* δυναμικός πίνακας με pointers στα επιλεγμένα βιβλία για προβολή */
-      int remainder;
-
-      /* Μονοσυνδεδεμένη λίστα όλων των genres ταξινομημένη κατά gid (για εύκολη σάρωση). */
-      struct genre *next;
-   } genre_t;
-
-/* -----------------------------------------
-   LIBRARY: κεντρικός "ρίζας"
-   - Κρατά λίστα Genres (sorted by gid)
-   - Κρατά λίστα Members (sorted by sid)
-   ----------------------------------------- */
 typedef struct library {
-    genre_t  *genres;     /* κεφαλή λίστας genres (sorted by gid) */
-    member_t *members;    /* διπλά συνδεδεμένη λίστα μελών (sorted by sid) */
-    book_t   *books;      /* unsorted λίστα όλων των books (ευκολία αναζήτησης) — προαιρετικό */
+  genre_t *genres;   
+  member_t *members; 
+  book_t *books; 
+  Heap_t *RecHeap;
+  Activity_t *activity;
 } library_t;
 
+typedef struct BookNode {
+  char title[TITLE_MAX];
+  book_t *book;
+  struct BookNode *Lc;
+  struct BookNode *Rc;
+  int height;
+} bookn_t;
+
+typedef struct RecHeap {
+  book_t *heap;
+  size_t capacity;
+} Heap_t;
+
+typedef struct MemberActivity {
+  int sid;
+  int loans_count;
+  int reviews_count;
+  int score_sum;
+  struct MemberActivity *next;
+} Activity_t;
 
 // creation
 library_t *createLibrary(void);
-genre_t   *createGenre(int gid, char *name);
-member_t  *createmember(int sid, char *name);
-book_t    *createBook(int bid, int gid, char *title);
+genre_t *createGenre(int gid, char *name);
+member_t *createmember(int sid, char *name);
+book_t *createBook(int bid, int gid, char *title);
 
-// insertion 
+// insertion
 void insertGenretolist(library_t *head, genre_t *node);
 void insertbooktogenre(genre_t *head, book_t *newbook);
 void insertbooktogeneric(library_t *head, book_t *book);
 void insertmembertolist(library_t *head, member_t *newmember);
-void insertbookstodisplay(genre_t* genre);
+void insertbookstodisplay(genre_t *genre);
 
-// search 
-genre_t   *searchgenre(library_t *head, int gid);
-book_t    *searchbook(genre_t *head, int bid);
-book_t    *searchbooktogeneric(library_t *Lib, int bid);
-member_t  *searchmember(library_t *Lib, int sid);
-loan_t    *searchloan(member_t *head, int bid);
+// search
+genre_t *searchgenre(library_t *head, int gid);
+book_t *searchbook(genre_t *head, int bid);
+book_t *searchbooktogeneric(library_t *Lib, int bid);
+member_t *searchmember(library_t *Lib, int sid);
+member_t *find_loan(library_t *Lib, int bid);
+loan_t *searchloan(member_t *head, int bid);
 
-// actions 
+// actions
 void reviewbook(book_t *bookingenre, book_t *bookingeneric, int score);
 void returnbook(library_t *lib, int sid, int bid, int score, char *status);
 void Loanbook(library_t *LIB, int sid, int bid);
@@ -141,32 +114,9 @@ void removeloan(member_t *member, loan_t *loan);
 // printing
 void printmemberloan(library_t *lib, int sid);
 void printdisplay(library_t *Lib);
-void printgenrebooks(library_t *lib, int gid);  // ✅ Added
+void printgenrebooks(library_t *lib, int gid);
 
 // utility/calculation helpers
 int computepoints(genre_t *genre);
 genre_t *findmaxgenre(library_t *Lib);
-/* =========================
-   ΒΟΗΘΗΤΙΚΕΣ ΣΥΜΒΑΣΕΙΣ & INVARIANTS
-   =========================
-
-   ΕΙΣΑΓΩΓΗ βιβλίου σε genre (μετά από αλλαγή avg):
-   - Επανατοποθέτηση με τοπικές αλλαγές δεικτών (O(hops)):
-     1) Αφαιρείς το βιβλίο από την τωρινή θέση (splice-out).
-     2) Σαρώνεις προς τα πάνω/κάτω μέχρι να βρεις τοπική θέση ως προς avg.
-     3) Εισάγεις (splice-in) πριν από τον πρώτο κόμβο με avg < δικό μου.
-
-   DISPLAY (αποτέλεσμα D):
-   - Πριν τρέξει νέα D, απελευθερώνεις την προηγούμενη μνήμη (free genre->display),
-     και θέτεις display=NULL, display_count=0 σε όλα τα genres.
-   - Η D ΓΕΜΙΖΕΙ τον πίνακα display ανά genre με έως seats(g) pointers.
-
-   ΠΟΛΥΠΛΟΚΟΤΗΤΕΣ:
-   - Insert loan: O(1)
-   - Return book με έγκυρο score: ενημέρωση sum/n/avg (O(1)) + επανατοποθέτηση σε genre (O(hops))
-   - Υπολογισμός D: μία σάρωση όλης της λίστας κάθε genre για points (O(#books_in_genre))
-     + ταξινόμηση remainders (O(#genres log #genres))
-     + επιλογή κορυφαίων ανά genre (γραμμική στα seats(g)).
-*/
-
 #endif
