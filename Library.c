@@ -554,11 +554,111 @@ bookn_t *createBookn(char * title , book_t * book){
       return NULL;
     }
     newbook->book=book;
-    newbook->Lc=NULL;
-    newbook->Rc=NULL;
+    newbook->lc=NULL;
+    newbook->rc=NULL;
     newbook->height=0;
     strcpy(newbook->title,title);
     return newbook;
+}
+// A function to make a right rotation
+bookn_t *RightRotate(bookn_t *parent) {
+    bookn_t *child = parent->lc;      
+    bookn_t *temp  = child->rc;    
+    child->rc = parent;               // The Child takes the Parent as its new right child
+    parent->lc = temp;                // The Parent takes the Temp node as its new left child
+    parent->height = 1 + max(height(parent->lc), height(parent->rc));
+    child->height  = 1 + max(height(child->lc), height(child->rc));
+    return child;
+}
+// Function to make a left rotation
+bookn_t *LeftRotate(bookn_t *parent) {
+    bookn_t *child = parent->rc;      
+    bookn_t *temp  = child->lc;       
+    child->lc = parent;               // The Child takes the Parent as its new left child
+    parent->rc = temp;                // The Parent takes the Temp node as its new right child
+    parent->height = 1 + max(height(parent->lc), height(parent->rc));
+    child->height  = 1 + max(height(child->lc), height(child->rc));
+    return child;
+}
+// A helper function to get balance factor of a node 
+int getBalance(bookn_t *node) {
+    if (node == NULL)
+        return 0;
+    return height(node->lc)-height(node->rc);
+}
+
+bookn_t* insertBookIndex(bookn_t* node, char* title, book_t* book){
+    if (node==NULL){
+        return createBookn(title,book);
+    }
+    int cmp= strcmp(title,node->title);
+    if (cmp>0){
+        node->rc=insertBookIndex(node->rc,title,book);
+    }else if (cmp<0){
+        node->lc=insertBookIndex(node->lc,title,book);
+    }else {
+        //TODO: check if equal are allowed else return ignored 
+    }
+    node->height = 1 + max(height(node->lc), height(node->rc));
+    int balance = getBalance(node);
+    // Case 1: Left Left (Single Rotation)
+    if (balance > 1 && strcmp(title, node->lc->title) < 0) {
+        return RightRotate(node);
+    }
+
+    // Case 2: Right Right (Single Rotation)
+    if (balance < -1 && strcmp(title, node->rc->title) > 0) {
+        return LeftRotate(node);
+    }
+    // Case 3: Left Right (Double Rotation)
+    if (balance > 1 && strcmp(title, node->lc->title) > 0) {
+        node->lc = LeftRotate(node->lc);
+        return RightRotate(node);
+    }
+
+    // Case 4: Right Left (Double Rotation)
+    if (balance < -1 && strcmp(title, node->rc->title) < 0) {
+        node->rc = RightRotate(node->rc);
+        return LeftRotate(node);
+    }
+
+    // if no returns are needed then return the node 
+    return node;
+}
+// A helper function that searches for a title in the AVL tree
+bookn_t *searchBookIndex(bookn_t *root, char *title) {
+    if (root == NULL) {
+        return NULL;
+    }
+    int cmp = strcmp(title, root->title);
+    if (cmp == 0) {
+        return root; 
+    } else if (cmp < 0) {
+        return searchBookIndex(root->lc, title);
+    } else {
+        return searchBookIndex(root->rc, title);
+    }
+}
+
+// A helper function that checks if a > b
+int isGreater(book_t *a, book_t *b) {
+    if (a == NULL || b == NULL) return 0;
+    
+    if (a->avg > b->avg) {
+        return 1; 
+    }
+    if (a->avg == b->avg && a->bid < b->bid) {
+        return 1; 
+    }
+    return 0;
+}
+void swap(Heap_t *heap, int i, int j) {
+    book_t *temp = heap->heap[i];
+    heap->heap[i] = heap->heap[j];
+    heap->heap[j] = temp;
+
+    heap->heap[i]->heap_pos = i;
+    heap->heap[j]->heap_pos = j;
 }
 
 int main(int argc, char *argv[]){

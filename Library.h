@@ -62,14 +62,14 @@ typedef struct library {
 typedef struct BookNode {
   char title[TITLE_MAX];
   book_t *book;
-  struct BookNode *Lc;
-  struct BookNode *Rc;
+  struct BookNode *lc;
+  struct BookNode *rc;
   int height;
 } bookn_t;
 
 typedef struct RecHeap {
-  book_t *heap;
-  size_t capacity;
+  book_t *heap[64];
+  size_t size ;
 } Heap_t;
 
 typedef struct MemberActivity {
