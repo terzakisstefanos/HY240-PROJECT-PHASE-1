@@ -898,8 +898,57 @@ void free_bookindex(bookn_t *root) {
     free_bookindex(root->rc);
     free(root);
 }
+void print_stats(library_t *lib) {
+    if (lib == NULL) {
+        printf("Stats:\n");
+        return;
+    }
+
+    int book_count = 0;
+    int member_count = 0;
+    int loan_count = 0;
+    long long total_scores = 0;
+    long long total_reviews = 0;
+
+    book_t *book_current = lib->books;
+    while (book_current != NULL) {
+        if (book_current->lost_flag == 0) {
+            book_count++;
+            total_scores += book_current->sum_scores;
+            total_reviews += book_current->n_reviews;
+        }
+        book_current = book_current->next_global;
+    }
+
+    member_t *member_current = lib->members;
+    while (member_current != NULL) {
+        member_count++;
+
+        loan_t *sentinel = member_current->loans;
+        if (sentinel != NULL) {
+            loan_t *loan_current = sentinel->next;
+            while (loan_current != NULL && loan_current != sentinel) {
+                loan_count++;
+                loan_current = loan_current->next;
+            }
+        }
+
+        member_current = member_current->next;
+    }
+
+    int global_avg = 0;
+    if (total_reviews > 0) {
+        global_avg = (int)(total_scores / total_reviews);
+    }
+
+    printf("Stats: books=%d members=%d loans=%d avg=%d\n",
+           book_count,
+           member_count,
+           loan_count,
+           global_avg);
+}
 int main(int argc, char *argv[]){
-    if (argc != 2) { // get the file name  make 
+    if (argc != 2) {
         fprintf(stderr, "Usage: %s <input-file>\n", argv[0]);
         return 1;
     }
@@ -912,13 +961,13 @@ int main(int argc, char *argv[]){
     library_t *library=createLibrary();
     char buffer[256];
     while (fgets(buffer,sizeof(buffer),file)!=NULL){
-        if (buffer[0] == '#' || buffer[0] == '\n' || buffer[0] == '\r'){ // remove comments 
+        if (buffer[0] == '#' || buffer[0] == '\n' || buffer[0] == '\r'){
             continue;
         }
         if (strncmp(buffer, "G", 1) == 0) {
             int gid;
             char name[NAME_MAX] ;
-            sscanf(buffer+2,"%d \"%63[^\"]\"",&gid,name);// The 63 and later the 127 is to limit the reading of the name to the maxname
+            sscanf(buffer+2,"%d \"%63[^\"]\"",&gid,name);
             genre_t *newnode= createGenre(gid,name);
             if (newnode==NULL){
                 return 1;
@@ -945,7 +994,8 @@ int main(int argc, char *argv[]){
                 continue;
             }
             insertbooktogenre(genre,newbook);
-            insertbooktogeneric(library,newbook);//TODO: add the book index and comment the email that got sent to you 
+            insertbooktogeneric(library,newbook);
+            library->Root = insertBookIndex(library->Root, newbook->title, newbook);
             printf("DONE\n");
         } else if (strncmp(buffer, "M", 1) == 0) {
             int sid;
@@ -964,7 +1014,7 @@ int main(int argc, char *argv[]){
         } else if (strncmp(buffer, "R", 1) == 0) {
             int sid,bid,score=-1;
             char status[10];
-            sscanf(buffer+2,"%d %d %d %s",&sid,&bid,&score,status); // No need to check if score is NA becuase the sscanf wont even read it 
+            sscanf(buffer+2,"%d %d %d %s",&sid,&bid,&score,status);
             returnbook(library,sid,bid,score,status);
         } else if (strncmp(buffer, "D", 1) == 0) {
             display(library);
@@ -972,10 +1022,10 @@ int main(int argc, char *argv[]){
             int gid;
             sscanf(buffer+3,"%d",&gid);
             genre_t *genre = searchgenre(library,gid);
-                        if (genre == NULL) {
+            if (genre == NULL) {
                 printf("IGNORED\n");
             } else {
-            printgenrebooks(library,gid);    
+                printgenrebooks(library,gid);
             }
         } else if (strncmp(buffer, "PM", 2) == 0) {
             int sid;
@@ -985,8 +1035,40 @@ int main(int argc, char *argv[]){
             printdisplay(library);
         } else if (strncmp(buffer, "S", 1) == 0) {
             sscanf(buffer + 2, "%d", &SLOTS);
-            printf("DONE\n"); 
+            printf("DONE\n");
+        } else if (strncmp(buffer, "F", 1) == 0) {
+            char title[NAME_MAX];
+            sscanf(buffer + 2, "\"%127[^\"]\"", title);
+            bookn_t *node = searchBookIndex(library->Root, title);
+            if (node == NULL || node->book == NULL || node->book->lost_flag == 1) {
+                printf("IGNORED\n");
+            } else {
+                printf("Book %d \"%s\" avg=%d\n",
+                       node->book->bid,
+                       node->book->title,
+                       node->book->avg);
+            }
+        } else if (strncmp(buffer, "TOP", 3) == 0) {
+            int k;
+            sscanf(buffer + 4, "%d", &k);
+            print_top_k(library, k);
+        } else if (strncmp(buffer, "AM", 2) == 0) {
+            print_activity_list(library);
+        } else if (strncmp(buffer, "U", 1) == 0) {
+            int bid;
+            char new_title[NAME_MAX];
+            sscanf(buffer + 2, "%d \"%127[^\"]\"", &bid, new_title);
+            update_book_title(library, bid, new_title);
+        } else if (strncmp(buffer, "X", 1) == 0) {
+            print_stats(library);
+        } else if (strncmp(buffer, "BF", 2) == 0) {
+            free_library(library);
+            printf("DONE\n");
+            fclose(file);
+            return 0;
         }
     }
+    fclose(file);
+    free_library(library);
     return 0; 
 }
