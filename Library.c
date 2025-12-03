@@ -57,6 +57,22 @@ member_t *createmember(int sid, char* name){
     strcpy(newmember->name, name);
     newmember->next=NULL;
     newmember->sid = sid;
+//-----------create member activity-----------
+    newmember->activity = malloc(sizeof(Activity_t));
+    if (newmember->activity == NULL) {
+        free(newmember->loans);
+        free(newmember);
+        printf("IGNORED\n");
+        return NULL;
+    }
+    newmember->activity->sid = sid;
+    newmember->activity->loans_count = 0;
+    newmember->activity->reviews_count = 0;
+    newmember->activity->score_sum = 0;
+    newmember->activity->next = NULL;
+    strcpy(newmember->name, name);
+    newmember->next = NULL;
+    newmember->sid = sid;
     return newmember;
 }
 
@@ -152,6 +168,12 @@ void insertmembertolist(library_t *head, member_t *newmember) {
     }
     newmember->next = current->next;
     current->next = newmember;
+    // add the member activity to the list 
+    Activity_t *act = newmember->activity;
+    if (act != NULL) {
+        act->next = head->activity;
+        head->activity = act;
+    }
     printf("%s\n","DONE");
     return;
 }
@@ -263,6 +285,9 @@ void Loanbook(library_t *LIB, int sid, int bid){
     newloan->bid = bid;
     newloan->next = member->loans->next;
     member->loans->next = newloan;
+    if (member->activity != NULL) {
+        member->activity->loans_count++;
+    }
     printf("%s\n", "DONE");
     return;
 }
@@ -350,6 +375,10 @@ void returnbook(library_t * lib,int sid,int bid,int score,char *status){
             reviewbook(bookingenre ,bookingeneric,score);
             removebook(genre,bookingenre);
             insertbooktogenre(genre,bookingenre);
+            if (member->activity != NULL) {
+                member->activity->reviews_count++;
+                member->activity->score_sum += score;
+            }
             printf("%s\n", "DONE");
         }else if (score==-1) {
             removeloan(member,loan);
@@ -662,7 +691,213 @@ void swap(Heap_t *heap, int i, int j) {
     heap->heap[i]->heap_pos = i; // we also swap the heap_pos
     heap->heap[j]->heap_pos = j;
 }
+// A function that restores max-heap property starting from i going downwards
+void heapify_down(Heap_t *heap, int i) {
+    while (1) {
+        int left = 2 * i;
+        int right = 2 * i + 1;
+        int largest = i;
 
+        // If one of the childs are larger than the parent then replace him
+        if (left <= (int)heap->size && isGreater(heap->heap[left], heap->heap[largest])) {
+            largest = left;
+        }
+        if (right <= (int)heap->size && isGreater(heap->heap[right], heap->heap[largest])) {
+            largest = right;
+        }
+        // if not do nothing 
+        if (largest == i) {
+            break;
+        }
+        swap(heap, i, largest);
+        i = largest;
+    }
+}
+
+// A function that restores max-heap property starting from i going upwards
+void heapify_up(Heap_t *heap, int i) {
+    while (i > 1) {
+        int parent = i / 2;
+
+        // If current node is not greater than parent
+        if (!isGreater(heap->heap[i], heap->heap[parent])) {
+            break;
+        }
+        // Otherwise swap with parent and move up
+        swap(heap, i, parent);
+        i = parent;
+    }
+}
+int heap_insert(Heap_t *heap, book_t *book) {
+    if (heap->size + 1 >= 64) {
+        printf("%s\n", "IGNORED");
+        return 1; 
+    }
+    heap->size++;
+    int i = heap->size;
+    heap->heap[i] = book;     
+    book->heap_pos = i;        
+    heapify_up(heap, i);
+    return 0;
+}
+void heap_update_key(Heap_t *heap, book_t *book) {
+    int pos = book->heap_pos;
+    if (pos <= 0 || pos > heap->size){
+        printf("%s\n", "IGNORED");
+        return;
+    }
+    heapify_up(heap, pos);// if up didnt work try down 
+    if (pos == book->heap_pos) {
+        heapify_down(heap, pos);
+    }
+}
+void heap_remove(Heap_t *heap, book_t *book) {
+    if (heap == NULL){
+        printf("%s\n", "IGNORED");
+        return;
+    }
+    int pos = book->heap_pos;
+    if (pos <= 0 || pos >heap->size) {\
+        printf("%s\n", "IGNORED");
+        return; 
+    }
+    int last = heap->size;
+    if (pos != last) {
+        heap->heap[pos] = heap->heap[last];
+        heap->heap[pos]->heap_pos = pos;
+    }
+    heap->heap[last] = NULL;
+    heap->size--;
+    book->heap_pos = 0; // mark as not in heap anymore
+    if (pos > (int)heap->size) {
+        return;
+    }
+    heapify_up(heap, pos);// fix the heap structure 
+    heapify_down(heap, pos);
+}
+// A helper that returns the score of a node 
+int activity_score( Activity_t *a) {
+    return a->loans_count + a->reviews_count;
+}
+// A function that prints the activity list
+void print_activity_list(library_t *lib) {
+    if (lib == NULL || lib->activity == NULL) {
+        printf("%s\n", "IGNORED");
+        return;
+    }
+    int count = 0;
+    Activity_t *cur = lib->activity;
+    while (cur != NULL) {
+        count++;
+        cur = cur->next;
+    }
+    if (count == 0){ 
+        printf("%s\n", "IGNORED");
+        return;
+    }
+    Activity_t **arr = malloc(count * sizeof(Activity_t *));
+    if (arr == NULL) {
+        printf("%s\n", "IGNORED");
+        return;
+    }
+    cur = lib->activity;
+    for (int i = 0; i < count; i++) {
+        arr[i] = cur;
+        cur = cur->next;
+    }
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = i + 1; j < count; j++) {
+            int score_i = activity_score(arr[i]);
+            int score_j = activity_score(arr[j]);
+            if (score_j > score_i ||
+                (score_j == score_i && arr[j]->sid < arr[i]->sid)) {
+                Activity_t *tmp = arr[i];
+                arr[i] = arr[j];
+                arr[j] = tmp;
+            }
+        }
+    }
+    printf("Active Members:\n");
+    for (int i = 0; i < count; i++) {
+        Activity_t *a = arr[i];
+        member_t *m = searchmember(lib, a->sid);
+        if (m != NULL) {
+            printf("%d %s loans=%d reviews=%d\n",
+                   a->sid,
+                   m->name,
+                   a->loans_count,
+                   a->reviews_count);
+        }
+    }
+
+    free(arr);
+}
+void free_library(library_t *lib) {
+    if (lib == NULL) return;
+
+    genre_t *gcurrent = lib->genres;
+    while (gcurrent != NULL) {
+        genre_t *gtemp = gcurrent;
+        gcurrent = gcurrent->next;
+        book_t *bcurrent = gtemp->books;
+        while (bcurrent != NULL) {
+            book_t *btemp = bcurrent;
+            bcurrent = bcurrent->next;
+            free(btemp);
+        }
+
+        free(gtemp);
+    }
+    lib->genres = NULL;
+
+    book_t *gbcur = lib->books;
+    while (gbcur != NULL) {
+        book_t *gbtemp = gbcur;
+        gbcur = gbcur->next;
+        free(gbtemp);
+    }
+    lib->books = NULL;
+
+    member_t *mcurrent = lib->members;
+    while (mcurrent != NULL) {
+        member_t *temp = mcurrent;
+        mcurrent = mcurrent->next;
+        loan_t *sentinel = temp->loans;
+        if (sentinel != NULL) {
+            loan_t *loancurrent = sentinel->next;
+            while (loancurrent != NULL && loancurrent != sentinel) {
+                loan_t *loantemp = loancurrent;
+                loancurrent = loancurrent->next;
+                free(loantemp);
+            }
+            free(sentinel);
+        }
+        free(temp);// I free activity further down 
+    }
+    lib->members = NULL;
+    Activity_t *acur = lib->activity;
+    while (acur != NULL) {
+        Activity_t *atemp = acur;
+        acur = acur->next;
+        free(atemp);
+    }
+    lib->activity = NULL;
+    if (lib->RecHeap != NULL) {
+        free(lib->RecHeap);
+        lib->RecHeap = NULL;
+    }
+    if (lib->Root != NULL) {
+        free_bookindex(lib->Root);
+        lib->Root = NULL;
+    }
+    free(lib);
+}
+void free_bookindex(bookn_t *root) {
+    if (root == NULL) return;
+    free_bookindex(root->lc);
+    free_bookindex(root->rc);
+    free(root);
+}
 int main(int argc, char *argv[]){
     if (argc != 2) { // get the file name  make 
         fprintf(stderr, "Usage: %s <input-file>\n", argv[0]);
@@ -710,7 +945,7 @@ int main(int argc, char *argv[]){
                 continue;
             }
             insertbooktogenre(genre,newbook);
-            insertbooktogeneric(library,newbook);
+            insertbooktogeneric(library,newbook);//TODO: add the book index and comment the email that got sent to you 
             printf("DONE\n");
         } else if (strncmp(buffer, "M", 1) == 0) {
             int sid;

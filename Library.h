@@ -57,6 +57,7 @@ typedef struct library {
   book_t *books; 
   Heap_t *RecHeap;
   Activity_t *activity;
+  bookn_t *Root;
 } library_t;
 
 typedef struct BookNode {
@@ -69,7 +70,7 @@ typedef struct BookNode {
 
 typedef struct RecHeap {
   book_t *heap[64];
-  size_t size ;
+  int size ;
 } Heap_t;
 
 typedef struct MemberActivity {
@@ -119,4 +120,10 @@ void printgenrebooks(library_t *lib, int gid);
 // utility/calculation helpers
 int computepoints(genre_t *genre);
 genre_t *findmaxgenre(library_t *Lib);
+
+// Phase B: heap helpers
+int isGreater(book_t *a, book_t *b);
+void swap(Heap_t *heap, int i, int j);
+void heapify_down(Heap_t *heap, int i);
+void heapify_up(Heap_t *heap, int i);
 #endif
