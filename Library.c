@@ -594,10 +594,11 @@ bookn_t* insertBookIndex(bookn_t* node, char* title, book_t* book){
     int cmp= strcmp(title,node->title);
     if (cmp>0){
         node->rc=insertBookIndex(node->rc,title,book);
-    }else if (cmp<0){
-        node->lc=insertBookIndex(node->lc,title,book);
-    }else {
-        //TODO: check if equal are allowed else return ignored 
+    } else if (cmp < 0) {
+        node->lc = insertBookIndex(node->lc, title, book);
+    } else {
+        printf("%s\n", "IGNORED");
+        return NULL;
     }
     node->height = 1 + max(height(node->lc), height(node->rc));
     int balance = getBalance(node);
@@ -652,12 +653,13 @@ int isGreater(book_t *a, book_t *b) {
     }
     return 0;
 }
+// A helper function that swaps heap[i],heap[j]
 void swap(Heap_t *heap, int i, int j) {
     book_t *temp = heap->heap[i];
     heap->heap[i] = heap->heap[j];
     heap->heap[j] = temp;
 
-    heap->heap[i]->heap_pos = i;
+    heap->heap[i]->heap_pos = i; // we also swap the heap_pos
     heap->heap[j]->heap_pos = j;
 }
 
